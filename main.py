@@ -1,8 +1,12 @@
+"""
+# Pico-GPS - a GPX Tracks Recorder for Rapsberry Pi Pico
+# Copyright (c) 2024 Stéphane Bouchard (partiexplorer@gmail.com)
+# The MIT License (MIT) - see LICENSE file
+"""
 from machine import Pin, UART, I2C
 #ref.: https://www.youtube.com/watch?v=y2EDhzDiPTE
 #ref.: https://github.com/ahmadlogs/rpi-pico-upy/tree/main/gps2-rpi-pico
 
-#Import utime library to implement delay
 import utime, time
 
 from math import radians, degrees, sin, cos, sqrt, atan2
@@ -86,16 +90,15 @@ while True:
         print("Wait for fix " + str(my_gps.satellites_visible()))
         oled.fill(0)
         oled.text("Wait for fix", 0, 0)
+        oled.text(str(my_gps.satellites_visible()), 0, 12)
         oled.show()
         utime.sleep(0.25)
-        oled.fill(0)
         oled.text("Wait for fix.", 0, 0)
         oled.show()
         utime.sleep(0.25)
         oled.text("Wait for fix..", 0, 0)
         oled.show()
         utime.sleep(0.25)
-        oled.fill(0)
         oled.text("Wait for fix...", 0, 0)
         oled.show()
         utime.sleep(0.25)
@@ -106,11 +109,12 @@ while True:
     #t[0] => hours : t[1] => minutes : t[2] => seconds
     gpsTime = '{:02d}:{:02d}:{:02}'.format(t[0], t[1], t[2])
     gpsDate = my_gps.date_string('l_ymd')
-    gpxdatetime = my_gps.date_string('l_ymd') + 'T' + '{:02d}:{:02d}:{:02}'.format(t[0], t[1], t[2]) + 'Z'
+    gpx_datetime_local = my_gps.gpx_datetime('local')
+    gpx_datetime_utc = my_gps.gpx_datetime('utc')
     speed = my_gps.speed_string('kph')
 
     if track_filename == "":
-        track_filename = gpxdatetime
+        track_filename = gpx_datetime_local
         track_filename = track_filename.replace("-", "") # Remplacer les "-" par "-"
         track_filename = track_filename.replace("T", "_") # Remplacer le "T" par "_"
         track_filename = track_filename.replace(":", "") # Remplacer les ":" par ""
@@ -130,7 +134,7 @@ while True:
     #_________________________________________________
     print('Lat:', latitude)
     print('Lon:', longitude)
-    print('gpxdatetime:', gpxdatetime)
+    print('gpx_datetime_local:', gpx_datetime_local)
 #     print('Speed:', speed)
     print('Distance:', str(d))
     #_________________________________________________
@@ -154,7 +158,7 @@ while True:
     prevLongitude = longitude
 
     track_file = open(track_filename, "a")
-    track_file.write(str(latitude) + "," + str(longitude) + "," + gpxdatetime + "\n")
+    track_file.write(str(latitude) + "," + str(longitude) + "," + gpx_datetime_utc + "\n")
     track_file.flush()
     track_file.close()
 

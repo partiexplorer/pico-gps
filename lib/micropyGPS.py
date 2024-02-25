@@ -829,6 +829,33 @@ class MicropyGPS(object):
 
         return date_string
 
+    def gpx_datetime(self, mode='utc', century='20'):
+        """
+        Creates a datetime string compatible with the gpx file format:
+        ex.: 2024-02-24T12:47:05Z
+        :param timezone: string 'utc' or 'local'
+        :param century: int delineating the century the GPS data is from (19 for 19XX, 20 for 20XX)
+        :return: datetime string in the request mode
+        """
+
+        # Create the datetime string
+        year = int(century) * 100 + self.date[2]  # Calculate the year
+        month = self.date[1]  # Get the month
+        day = self.date[0]  # Get the day
+
+        # Calculate the hour based on the mode
+        if mode == 'utc':
+            hour = (self.timestamp[0] - self.local_offset) % 24
+        else:
+            hour = self.timestamp[0]
+        
+        minute = self.timestamp[1]  # Get the minute
+        second = int(self.timestamp[2])  # Get the second
+        
+        datetime = '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}Z'.format(year, month, day, hour, minute, second)
+
+        return datetime
+    
     # All the currently supported NMEA sentences
     supported_sentences = {'GPRMC': gprmc, 'GLRMC': gprmc,
                            'GPGGA': gpgga, 'GLGGA': gpgga,
