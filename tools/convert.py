@@ -5,7 +5,7 @@ import sys
 
 def convert_csv_to_gpx(csv_file):
     gpx_file = csv_file.replace(".csv",".gpx")
-    Converter(input_file=csv_file).csv_to_gpx(lats_colname='lat', longs_colname='lon', times_colname='time', output_file=gpx_file)
+    Converter(input_file=csv_file).csv_to_gpx(lats_colname='lat', longs_colname='lon', times_colname='time', alts_colname='ele', output_file=gpx_file)
     return gpx_file
 
 def select_csv_to_convert():

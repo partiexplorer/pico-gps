@@ -19,6 +19,8 @@ from micropyGPS import MicropyGPS
 #https://github.com/inmcm/micropyGPS
 #________________________________________________________
 
+import bme280
+
 ##########################################################
 #Oled I2C connection
 i2c=I2C(0, sda=Pin(8), scl=Pin(9), freq=400000)
@@ -27,8 +29,10 @@ oled = SSD1306_I2C(128, 64, i2c)
 
 ##########################################################
 #GPS Module UART Connection
-gps_module = UART(1, baudrate=9600, tx=Pin(4), rx=Pin(5))
+gps_module = UART(0, baudrate=9600, tx=Pin(16), rx=Pin(17))
 ##########################################################
+
+bme = bme280.BME280(i2c=i2c)
 
 ##########################################################
 # variables
@@ -39,6 +43,7 @@ my_gps = MicropyGPS(TIMEZONE, 'ddm')
 track_filename = ""
 prevLatitude = float(0)
 prevLongitude = float(0)
+sea_level_pressure = 101325  # Pression au niveau de la mer en Pascals (valeur standard)
 ##########################################################
 
 
@@ -75,6 +80,17 @@ def ddm_to_dms(coord_ddm_hemi):
     sec_float = (coord_ddm_hemi[1] - minutes) * 60
     return (coord_ddm_hemi[0], int(coord_ddm_hemi[1]), sec_float, coord_ddm_hemi[2])
 
+
+def altitude_from_pressure(pressure, sea_level_pressure):
+    # Constante pour la variation de la pression atmosphérique avec l'altitude (en mètres)
+    constant = 44330.0
+
+    # Calcul de l'altitude en fonction de la pression barométrique et de la pression au niveau de la mer
+    altitude = constant * (1 - (pressure / sea_level_pressure) ** (1/5.255))
+
+    return altitude
+
+
 ##########################################################
 while True:
     #_________________________________________________
@@ -88,9 +104,15 @@ while True:
     #_________________________________________________
     if not my_gps.fix_stat:
         print("Wait for fix " + str(my_gps.satellites_visible()))
+        print(bme.values)
         oled.fill(0)
         oled.text("Wait for fix", 0, 0)
         oled.text(str(my_gps.satellites_visible()), 0, 12)
+        oled.text(bme.values[0] + "   " + bme.values[2], 0, 24)
+        oled.text(bme.values[1], 0, 36)
+        pressure = bme.values[1].replace('hPa', '')
+        altitude = altitude_from_pressure(float(pressure)*100, sea_level_pressure)
+        oled.text(str(int(altitude)) + "m", 0, 48)
         oled.show()
         utime.sleep(0.25)
         oled.text("Wait for fix.", 0, 0)
@@ -121,13 +143,15 @@ while True:
         track_filename = track_filename[:-1] # Enlever le dernier "Z"
         track_filename = "track_{}.csv".format(track_filename)
         track_file = open(track_filename, "w")
-        track_file.write("lat,lon,time\n")
+        track_file.write("lat,lon,time,ele\n")
         track_file.flush() # [TODO] Maybe we don't need to flush if we close right away
         track_file.close()
 
     latitude = ddm_to_dd(my_gps.latitude)
-    longitude = ddm_to_dd(my_gps.longitude)    
-#     altitude = my_gps.altitude
+    longitude = ddm_to_dd(my_gps.longitude)
+    gps_elevation = altitude = my_gps.altitude
+    pressure = bme.values[1].replace('hPa', '')
+    altitude = altitude_from_pressure(float(pressure)*100, sea_level_pressure)
     
     d = haversine(prevLatitude, prevLongitude, latitude, longitude)
 
@@ -137,6 +161,8 @@ while True:
     print('gpx_datetime_local:', gpx_datetime_local)
 #     print('Speed:', speed)
     print('Distance:', str(d))
+    print('Elevation:', gps_elevation)
+    print('Altitude:', str(int(altitude)))
     #_________________________________________________
 
     oled.fill(0)
@@ -144,8 +170,9 @@ while True:
     oled.text(str(longitude), 0, 12)
 #     oled.text('Speed:'+ speed, 0, 24)
     oled.text('Time:'+ gpsTime, 0, 24)
-    oled.text(gpsDate, 0, 36)
-    oled.text('Dist:'+ '{0:.2f}'.format(d), 0, 48)
+#     oled.text(gpsDate, 0, 36)
+    oled.text(str(int(altitude)) + "m", 0, 36)
+    oled.text('D:'+ '{0:.1f}'.format(d) + " A:"+"{0:.0f}m".format(altitude), 0, 48)
     oled.show()
 
 #     utime.sleep(0.1)
@@ -158,7 +185,7 @@ while True:
     prevLongitude = longitude
 
     track_file = open(track_filename, "a")
-    track_file.write(str(latitude) + "," + str(longitude) + "," + gpx_datetime_utc + "\n")
+    track_file.write(str(latitude) + "," + str(longitude) + "," + gpx_datetime_utc + "," + str(int(altitude)) + "\n")
     track_file.flush()
     track_file.close()
 
